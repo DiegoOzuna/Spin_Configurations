@@ -2,8 +2,11 @@
 
 import numpy as np
 
+n = 0   #lattice dimensions nxn
+
 #This function will create our initial lattice space.
 def initializeLattice(n):
+    setN(n)                      
     lattice = np.zeros((n,n))
     fillLattice(lattice, n)
     return(lattice)
@@ -14,7 +17,29 @@ def fillLattice(lattice, n):
         for y in range(n):
             lattice[x][y] = np.random.choice([1, -1])
 
+#this will be used to store the n size of the lattice
+def setN(N):
+    global n
+    n = N   
 
+#this will be used in other functions where n cant/shouldnt be passed through user input
+def getN():
+    return n
+
+
+#This function is meant to calculate the local cost of S_ij 
+def neighboringCost(lattice, i, j):
+    n=getN()
+    currentNode = lattice[i][j]
+    aboveNode = lattice[i][(j+1)%n]
+    belowNode = lattice[i][(j-1)%n]
+    rightNode = lattice[(i+1)%n][j]
+    leftNode = lattice[(i-1)%n][j]
+
+    return np.multiply(currentNode, [aboveNode+belowNode+rightNode+leftNode])
+
+
+########################################################################################
 # below was inital lattice example, to then generalize above...
 # lattice = np.zeros((32,32))
 
@@ -27,3 +52,16 @@ def fillLattice(lattice, n):
 
 # print("Initial Lattice Space")
 # print(lattice)
+
+########################################################################################
+# below was testing of functions. Along with testing of new function neighboringCost
+# lattice = initializeLattice(8)
+
+# print(lattice)
+
+# cost = neighboringCost(lattice, 4, 4) #test to see if calculation of cost works
+# cost2 = neighboringCost(lattice, 7, 0) #test to see if we have periodic bounds
+
+# print(cost)
+# print()
+# print(cost2)
