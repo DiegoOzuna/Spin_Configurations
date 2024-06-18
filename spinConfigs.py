@@ -38,6 +38,10 @@ def neighboringCost(lattice, i, j):
 
     return np.multiply(currentNode, [aboveNode+belowNode+rightNode+leftNode])
 
+#This function is meant to just flip the spin of S_ij passed...
+def spinFlip(lattice, i, j):
+    lattice[i][j] *= -1
+
 
 ########################################################################################
 # below was inital lattice example, to then generalize above...
@@ -65,3 +69,16 @@ def neighboringCost(lattice, i, j):
 # print(cost)
 # print()
 # print(cost2)
+
+########################################################################################
+# below is testing just the spin flip...
+
+# lattice = initializeLattice(2)
+
+# print(lattice)
+
+# spinFlip(lattice, 0,0)
+
+# print()
+
+# print(lattice)
