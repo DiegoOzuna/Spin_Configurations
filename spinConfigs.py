@@ -24,7 +24,11 @@ class Lattice:
         return np.multiply(currentNode, [aboveNode+belowNode+rightNode+leftNode])
 
     def spin_flip(self, i, j):          #This function is meant to just flip the spin of S_ij passed...
-        self.config[i][j] *= -1
+        self.config[i][j] = self.config[i][j] * -1
+
+
+    def magnetization(self):            #This function will grab the magnetization of the current
+        return np.sum(self.config)/ (self.n * self.n)
 
 
 ########################################################################################
