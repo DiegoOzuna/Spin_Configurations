@@ -8,9 +8,9 @@ from multiprocessing import Pool # this is to let us do the calculations of each
 import spinConfigs # will be holding the lattice functions...
 
 
-def storeData(magnetTempData):
+def storeData(magnetTempData, fileName):
     df = pd.DataFrame(magnetTempData, columns=['Temperature', 'Magnetization'])
-    df.to_csv("magnetizations.csv", index=False)
+    df.to_csv(fileName, index=False)
 
 
 def montecarlo(lattice, MCS, Temp, equilibration_steps, step):
@@ -21,17 +21,17 @@ def montecarlo(lattice, MCS, Temp, equilibration_steps, step):
             for j in range(n):
                 a = np.random.choice(range(n))
                 b = np.random.choice(range(n))
-                energy_of_flip = np.multiply(-2, lattice.neighboring_cost(a,b))
+                energy_of_flip = (2) * lattice.neighboring_cost(a,b)
                 
-                if(energy_of_flip < 0):
+                if(energy_of_flip <= 0):
                     lattice.spin_flip(a,b)
                 else:
                     random = np.random.random() #generates some float between 0 and 1
                     if random < np.exp(np.divide((-energy_of_flip),Temp)):
                         lattice.spin_flip(a, b)
 
-        if z >= equilibration_steps and z % step == 0:
-            M.append(lattice.magnetization())
+                if z >= equilibration_steps and z % step == 0:
+                    M.append(lattice.magnetization())
 
     return M
 
@@ -39,7 +39,7 @@ def montecarlo(lattice, MCS, Temp, equilibration_steps, step):
 
 def compute_magnetization(temp):
     lattice = spinConfigs.Lattice(16)
-    magnetization = montecarlo(lattice, 10**6, temp, 100000, 1000)
+    magnetization = montecarlo(lattice, 10**5, temp, 10**4, 1000)
     return (temp, magnetization)
 
 
@@ -47,14 +47,14 @@ def compute_magnetization(temp):
 ##########################################################################################
 
 if __name__ == '__main__':
-    temps = np.arange(1, 5, 0.25)
+    temps = np.arange(1, 5, 0.5)
     with Pool() as p:
         with tqdm(total=len(temps)) as pbar:
             magnetTempData = []
             for i, result in tqdm(enumerate(p.imap_unordered(compute_magnetization, temps))):
                 magnetTempData.append(result)
                 pbar.update()
-    storeData(magnetTempData)
+    storeData(magnetTempData, 'Magnetization_16x16.csv')
 
 
 #
