@@ -21,7 +21,7 @@ class Lattice:
         rightNode = self.config[(i+1)%self.n][j]
         leftNode = self.config[(i-1)%self.n][j]
 
-        return np.multiply(currentNode, [aboveNode+belowNode+rightNode+leftNode])
+        return 1 * currentNode * (aboveNode+belowNode+rightNode+leftNode)
 
     def spin_flip(self, i, j):          #This function is meant to just flip the spin of S_ij passed...
         self.config[i][j] = self.config[i][j] * -1
