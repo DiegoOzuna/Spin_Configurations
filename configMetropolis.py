@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import multiprocessing as mp
 import spinConfigs # will be holding the lattice functions...
 
 
@@ -26,10 +27,9 @@ def montecarlo(lattice, MCS, maxTemp, step):
     latticeConfigurations = [0] * temp_steps.size                 # each index corresponds to a temperature (spin1 corresponds to temp 1)
     Elist = [0] * temp_steps.size                                 # each index corresponds to a temperature (spin1 corresponds to temp 1)
     
-    Mlist = {}                                                     # we know at each MCS we save configurations at different temperatures 
-    # (ie we know we need # of unique temp allocated lists of size MCS divided by the amount of steps before a measurement occurs)
-    for t in temp_steps:
-        Mlist[t] = [0] * (MCS//step)
+    Mlist = {t: [0] * (MCS//step) for t in temp_steps}  # we know at each MCS we save configurations at different temperatures (ie we know we need # of unique
+                                                        # temp allocated lists of size MCS divided by the amount of steps before a measurement occurs)
+    
 
     index = 0       #This index is used in order to store our data correctly within the Mlist every 1000 steps
     
