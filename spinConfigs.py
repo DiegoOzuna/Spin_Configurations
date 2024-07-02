@@ -4,44 +4,56 @@
 import numpy as np
 
 class Lattice:
-    def __init__(self, n):      #This function will create our initial lattice space.
+    def __init__(self, n):      #This function will create our initial 3D lattice space.
         self.n = n
-        self.config = np.zeros((n,n))
-        self.fill_lattice()
+        self.config = self.fill_lattice()
 
     def fill_lattice(self):     #This function is meant to fill in our initial lattice space with "spins" (up/down)
-        for x in range(self.n):
-            for y in range(self.n):
-                self.config[x][y] = np.random.choice([1, -1])
-
-    def neighboring_cost(self, i, j):       #This function is meant to calculate the local cost of S_ij 
-        currentNode = self.config[i][j]
-        aboveNode = self.config[i][(j+1)%self.n]
-        belowNode = self.config[i][(j-1)%self.n]
-        rightNode = self.config[(i+1)%self.n][j]
-        leftNode = self.config[(i-1)%self.n][j]
-
-        return 1 * currentNode * (aboveNode+belowNode+rightNode+leftNode)
-
-    def spin_flip(self, i, j):          #This function is meant to just flip the spin of S_ij passed...
-        self.config[i][j] = self.config[i][j] * -1
+        config = np.random.choice([1, -1], size=(self.n, self.n, self.n))
+        return config
 
 
-    def magnetization(self):            #This function will grab the magnetization of the current
-        return np.sum(self.config)/ (self.n * self.n)
+    def neighboring_cost(self, i, j, z):       #This function is meant to calculate the local cost of S_ijz
+        currentNode = self.config[i][j][z]
+
+        # This is within the same lattice space... (2d)
+        aboveNode = self.config[i][(j+1)%self.n][z]
+        belowNode = self.config[i][(j-1)%self.n][z]
+        rightNode = self.config[(i+1)%self.n][j][z]
+        leftNode = self.config[(i-1)%self.n][j][z]
+
+        # This is entering the other lattice space... (3d)
+        forwardNode = self.config[i][j][(z+1)%self.n]
+        backwardNode = self.config[i][j][(z-1)%self.n]
+
+        return 1 * currentNode * (aboveNode+belowNode+rightNode+leftNode+forwardNode+backwardNode)
+
+    def spin_flip(self, i, j, z):          #This function is meant to just flip the spin of S_ijz passed...
+        self.config[i][j][z] = self.config[i][j][z] * -1
+
+
+    def magnetization(self):            #This function will grab the magnetization of the 3d lattice
+        return np.sum(self.config)/ (self.n ** 3)
 
 
 ########################################################################################
-# # below is testing out the reconfiguration (aka our class lattice)
+# # below is testing out the reconfiguration (aka our 3d class lattice)
 
 # lattice = Lattice(3)       #should make the space of the lattice, and fill it in with spins (+1 / -1)
 
 # print(lattice.config)       #this should show the lattice space
 
-# print(lattice.neighboring_cost(0,0))    #this would give us the cost, should be through periodic bounds
-# print(lattice.neighboring_cost(2,2))    #this would give us the cost, should be through periodic bounds
+# lattice.spin_flip(1,1,1)                  #flip middle spin of middle lattice
 
-# lattice.spin_flip(1,1)                  #flip middle spin
+# print("HERE IS THE SPIN FLIP AFTER.....\n\n")
+# print(lattice.config, "\n")
 
-# print(lattice.config)                   #should see middle spin be opposite
+# print("HERE IS THE NEIGHBORING_COST for 0,0,0")
+# print(lattice.neighboring_cost(0,0,0))    #this would give us the cost, should be through periodic bounds
+# print("HERE IS THE NEIGHBORING_COST for 2,2,2")
+# print(lattice.neighboring_cost(2,2,2))    #this would give us the cost, should be through periodic bounds
+# print("\n")
+
+# print("HERE IS THE magnetization for the lattice")
+# print(lattice.magnetization())                   #
 
