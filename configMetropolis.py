@@ -89,7 +89,8 @@ def calculateTotalEnergy(lattice):
     E = 0
     for x in range(L):
         for y in range(L):
-            E = E - lattice.config[x][y] * (lattice.config[(x+1)%L][y] + lattice.config[x][(y+1)%L])
+            for z in range(L):
+                E = E - lattice.config[x][y][z] * (lattice.config[(x+1)%L][y][z] + lattice.config[x][(y+1)%L][z]+lattice.config[x][y][(z+1)%L])
     
     return E
 
@@ -105,20 +106,21 @@ def calculateTotalEnergy(lattice):
 #          that may or may not be beneficial.
 #
 # Params:
-# lattice; the configuration of the 2d lattice (nxn)
+# lattice; the configuration of the 3d lattice (nxnxn)
 # temp; the temperature of the system
 ########################################################################################################################
 def single_spin_flips(lattice, temp):            #will apply single spin flips to the lattice using metropolis policy
     for i in range(lattice.n):
         for j in range(lattice.n):
-            energy_of_flip = (2) * lattice.neighboring_cost(i,j)
-                
-            if(energy_of_flip <= 0):
-                lattice.spin_flip(i,j)
-            else:
-                random = np.random.random() #generates some float between 0 and 1
-                if random < np.exp(-energy_of_flip / temp):
-                    lattice.spin_flip(i, j)
+            for z in range(lattice.n):
+                energy_of_flip = (2) * lattice.neighboring_cost(i,j,z)
+                    
+                if(energy_of_flip <= 0):
+                    lattice.spin_flip(i,j,z)
+                else:
+                    random = np.random.random() #generates some float between 0 and 1
+                    if random < np.exp(-energy_of_flip / temp):
+                        lattice.spin_flip(i, j, z)
 
     new_lattice = spinConfigs.Lattice(lattice.n)
     new_lattice.config = np.copy(lattice.config)
