@@ -30,7 +30,7 @@ def storeData(dictionary, filename):
 ########################################################################################################################
 def montecarlo(MCS, maxTemp, step):
     temp_steps = np.arange(1,maxTemp,0.5)
-    latticeConfigurations = [spinConfigs.Lattice(4) for _ in range(temp_steps.size)]    # each index corresponds to a temperature (spin1 corresponds to temp 1)
+    latticeConfigurations = [spinConfigs.Lattice(8) for _ in range(temp_steps.size)]    # each index corresponds to a temperature (spin1 corresponds to temp 1)
     Elist = [0] * temp_steps.size                                 # each index corresponds to a temperature (spin1 corresponds to temp 1)
     
     Mlist = {t: [0] * (MCS//step) for t in temp_steps}  # we know at each MCS we save configurations at different temperatures (ie we know we need # of unique
@@ -85,12 +85,12 @@ def montecarlo(MCS, maxTemp, step):
 # lattice; the configuration of the 2d lattice (nxn)
 ########################################################################################################################   
 def calculateTotalEnergy(lattice):
-    L = lattice.n     # L^2 = N ; therefore we only sum two sides
+    L = lattice.n     # L^3 = N ; therefore we only sum three sides
     E = 0
     for x in range(L):
         for y in range(L):
             for z in range(L):
-                E = E - lattice.config[x][y][z] * (lattice.config[(x+1)%L][y][z] + lattice.config[x][(y+1)%L][z]+lattice.config[x][y][(z+1)%L])
+                E = E - lattice.config[x][y][z] * (lattice.config[(x+1)%L][y][z] + lattice.config[x][(y+1)%L][z] + lattice.config[x][y][(z+1)%L])
     
     return E
 
@@ -130,13 +130,13 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
 
 
 
-maxTemp = 5
+maxTemp = 10
 MonteCarloSteps = 10**5
 measureEvery = 1000
 
 tempMagPairs = montecarlo(MonteCarloSteps, maxTemp, measureEvery)
 
-storeData(tempMagPairs, "Magnetization_4x4.csv")
+storeData(tempMagPairs, "Magnetization_8x8.csv")
 
 
 
