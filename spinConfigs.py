@@ -2,12 +2,18 @@
 #It is also meant to handle operations done on the lattice itself.
 
 import numpy as np
+import copy
 
 class Lattice:
     def __init__(self, n):      #This function will create our initial 3D lattice space.
         self.n = n
         self.config = self.fill_lattice()
         self.bonds = self.fill_bonds()
+
+    def genReplica(self):         #This function will replicate our current lattice's bonds but with a different spin configuration
+        replica = copy.deepcopy(self)  # Create a deep copy of the current instance
+        replica.config = self.fill_lattice()  # Generate a new lattice configuration
+        return replica
 
     def fill_lattice(self):     #This function is meant to fill in our initial lattice space with "spins" (up/down)
         config = np.random.choice([1, -1], size=(self.n, self.n, self.n))
@@ -44,7 +50,7 @@ class Lattice:
 
 
 ########################################################################################
-# # below is testing out the reconfiguration (aka our 3d class lattice)
+# below is testing out the reconfiguration (aka our 3d class lattice)
 
 # lattice = Lattice(3)       #should make the space of the lattice, and fill it in with spins (+1 / -1)
 
@@ -70,4 +76,32 @@ class Lattice:
 
 # print("HERE IS THE magnetization for the lattice")
 # print(lattice.magnetization())                   #
+# print("\n")
+
+
+# print("TESTING FOR SAME BONDS BUT DIFFERENT SPINS!\n")
+# replica = lattice.genReplica()
+# count = 0
+
+
+# def check_bonds(lattice, replica):
+#     for x in range(lattice.n):
+#         for y in range(lattice.n):
+#             for z in range(lattice.n):
+#                 if lattice.bonds[x][y][z] != replica.bonds[x][y][z]:
+#                     return False
+
+#     return True
+
+# def check_spins(lattice, replica):
+#     for x in range(lattice.n):
+#         for y in range(lattice.n):
+#             for z in range(lattice.n):
+#                 if lattice.config[x][y][z] != replica.config[x][y][z]:
+#                     return False
+
+#     return True
+
+# print("Checking bonds are equal....", check_bonds(lattice, replica))
+# print("Checking Spin Configurations....", check_spins(lattice, replica))
 
