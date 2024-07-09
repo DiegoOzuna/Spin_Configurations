@@ -18,17 +18,20 @@ def storeData(dictionary, filename):
     # Save the DataFrame to a CSV file
     df.to_csv(filename, index=False)
 
-########################################################################################################################
-# purpose: montecarlo will simply generate a list of magnetizations after applying a metropolis algorithm where we  
-#          repeatedly update the configuration of an inital lattice with spin ups and downs (+1,-1). 
-#
-# Params:
-# lattice; the initial configuration of a 2d lattice (nxn)
-# MCS; monte carlo steps that are set
-# Temp; the max temperature of our system (will start from 1 and go to Temp in 0.5 increments)
-# step; the MCS step we want to consistently keep measurements on (ex: every 1000th step we measure our system)
-########################################################################################################################
+
 def montecarlo(MCS, maxTemp, step):
+    """
+    purpose: montecarlo will simply generate a list of magnetizations after applying a metropolis algorithm where we  
+             repeatedly update the configuration of an inital lattice with spin ups and downs (+1,-1). 
+    
+    Params:
+    
+    MCS; monte carlo steps that are set
+    
+    maxTemp; the max temperature of our system (will start from 1 and go to Temp in 0.5 increments)
+    
+    step; the MCS step we want to consistently keep measurements on (ex: every 1000th step we measure our system)
+    """
     temp_steps = np.arange(1,maxTemp,0.5)
     latticeConfigurations = [spinConfigs.Lattice(8) for _ in range(temp_steps.size)]    # each index corresponds to a temperature (spin1 corresponds to temp 1)
     Elist = [0] * temp_steps.size                                 # each index corresponds to a temperature (spin1 corresponds to temp 1)
@@ -77,7 +80,6 @@ def montecarlo(MCS, maxTemp, step):
     return Mlist 
 
 
-
 ########################################################################################################################
 # Purpose: The purpose of energy is to calculate the systems entire energy by summing up the lattice's spins together
 #
@@ -85,6 +87,12 @@ def montecarlo(MCS, maxTemp, step):
 # lattice; the configuration of the 2d lattice (nxn)
 ########################################################################################################################   
 def calculateTotalEnergy(lattice):
+    """
+    Purpose: The purpose of energy is to calculate the systems entire energy by summing up the lattice's spins together
+    
+    Params:
+    lattice; the configuration of the lattice (nxnxn)
+    """
     L = lattice.n     # L^3 = N ; therefore we only sum three sides
     E = 0
     for x in range(L):
@@ -98,18 +106,20 @@ def calculateTotalEnergy(lattice):
 
 
 
-########################################################################################################################
-# Purpose: The purpose of single_spin_flips is in the name. We compute a check of the current observed spin wihtin the
-#          lattice using the metropolis function and update that spin position if accepted. This will mimick the property 
-#          if a single spin would flip within the lattice where at low temperatures it will be stubborn to change unless 
-#          beneficial to the systems overall cost where as at higher temperatures, it will be more likely to accept changes 
-#          that may or may not be beneficial.
-#
-# Params:
-# lattice; the configuration of the 3d lattice (nxnxn)
-# temp; the temperature of the system
-########################################################################################################################
 def single_spin_flips(lattice, temp):            #will apply single spin flips to the lattice using metropolis policy
+    '''
+    Purpose: The purpose of single_spin_flips is in the name. We compute a check of the current observed spin within the
+    lattice using the metropolis function and update that spin position if accepted. This will mimick the property 
+    if a single spin would flip within the lattice where at low temperatures it will be stubborn to change unless 
+    beneficial to the systems overall cost where as at higher temperatures, it will be more likely to accept changes 
+    that may or may not be beneficial.
+
+    Params:
+    
+    lattice; the configuration of the 3d lattice (nxnxn)
+    
+    temp; the temperature of the system
+    '''
     for i in range(lattice.n):
         for j in range(lattice.n):
             for z in range(lattice.n):
@@ -125,7 +135,6 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
     new_lattice = spinConfigs.Lattice(lattice.n)
     new_lattice.config = np.copy(lattice.config)
     return new_lattice
-
 
 
 
