@@ -32,60 +32,97 @@ def montecarlo(MCS, maxTemp, step):
     
     step; the MCS step we want to consistently keep measurements on (ex: every 1000th step we measure our system)
     """
-    temp_steps = np.arange(1,maxTemp,0.5)
-    latticeConfigurations = [spinConfigs.Lattice(8) for _ in range(temp_steps.size)]    # each index corresponds to a temperature (spin1 corresponds to temp 1)
-    Elist = [0] * temp_steps.size                                 # each index corresponds to a temperature (spin1 corresponds to temp 1)
+    temp_steps = np.arange(0.5,maxTemp,0.5)
     
-    Mlist = {t: [0] * (MCS//step) for t in temp_steps}  # we know at each MCS we save configurations at different temperatures (ie we know we need # of unique
-                                                        # temp allocated lists of size MCS divided by the amount of steps before a measurement occurs)
+    # Generate one set of lattice configurations
+    latticeConfigurations = [spinConfigs.Lattice(8) for _ in range(temp_steps.size)]
+
+    # Generate replicas of the above configurations
+    latticeConfigurations1 = [config.genReplica() for config in latticeConfigurations]  # S1
+    latticeConfigurations2 = [config.genReplica() for config in latticeConfigurations]  # S2
+    
+    Elist1 = [0] * temp_steps.size # each index corresponds to a temperature (spin1 corresponds to temp 1)
+    Elist2 = [0] * temp_steps.size
+    
+    Mlist1 = {t: [0] * (MCS//step) for t in temp_steps}  # we know at each MCS we save configurations at different temperatures (ie we know we need # of unique
+    Mlist2 = {t: [0] * (MCS//step) for t in temp_steps}  # temp allocated lists of size MCS divided by the amount of steps before a measurement occurs)
+    
+    Qlist = {t: [0] * (MCS//step) for t in temp_steps}  # Overlap measurements
     
 
-    index = 0       #This index is used in order to store our data correctly within the Mlist every 1000 steps
+    index = 0       #This index is used in order to store our data correctly within the Mlists every 1000 steps
     
-    n = latticeConfigurations[0].n
+    n = latticeConfigurations1[0].n
 
     for z in tqdm(range(MCS)):
         # do singular spin flips first
         for t in range(temp_steps.size):
-            latticeConfigurations[t] = single_spin_flips(latticeConfigurations[t], temp_steps[t])      # store final lattice from single_spin_flip for specific temperature
+            latticeConfigurations1[t] = single_spin_flips(latticeConfigurations1[t], temp_steps[t])      # store final lattice from single_spin_flip for specific temperature
+            latticeConfigurations2[t] = single_spin_flips(latticeConfigurations2[t], temp_steps[t])
 
         # Calculate total energy of systems
         for t in range(temp_steps.size):
-            Elist[t] = calculateTotalEnergy(latticeConfigurations[t])
+            Elist1[t] = calculateTotalEnergy(latticeConfigurations1[t])
+            Elist2[t] = calculateTotalEnergy(latticeConfigurations2[t])
 
         #Now we swap spins (parallel tempering)
         for t in range((temp_steps.size - 1)): #-1 to avoid getting out of bounds...
-            temp = np.exp((Elist[t] - Elist[t+1]) * (1/temp_steps[t] - 1/temp_steps[t+1]))
+            temp1 = np.exp((Elist1[t] - Elist1[t+1]) * (1/temp_steps[t] - 1/temp_steps[t+1]))
+            temp2 = np.exp((Elist2[t] - Elist2[t+1]) * (1/temp_steps[t] - 1/temp_steps[t+1]))
 
             # Generate some random, if this random is lower than the probability distribution...
-            if (np.random.random() < temp):
+            
+            #For S1
+            if (np.random.random() < temp1):
                 #Swap the spin configurations of this temperature with the next temperature
                 # note: this list will be used for our measurements
-                S_temp = latticeConfigurations[t]
-                latticeConfigurations[t] = latticeConfigurations[t+1]
-                latticeConfigurations[t+1] = S_temp
+                S_temp = latticeConfigurations1[t]
+                latticeConfigurations1[t] = latticeConfigurations1[t+1]
+                latticeConfigurations1[t+1] = S_temp
 
                 #Ensure that we swap the energy of that spin configuration to its corresponding spot
                 # note: this list will be used only for the scope of this for loop for calculations
-                E_temp = Elist[t]
-                Elist[t] = Elist[t+1]
-                Elist[t+1] = E_temp
+                E_temp = Elist1[t]
+                Elist1[t] = Elist1[t+1]
+                Elist1[t+1] = E_temp
 
-        #Measure the magnitudes of the lattices at that temperature
+            
+
+            #For S2
+            if (np.random.random() < temp2):
+                S_temp = latticeConfigurations2[t]
+                latticeConfigurations2[t] = latticeConfigurations2[t+1]
+                latticeConfigurations2[t+1] = S_temp
+                E_temp = Elist2[t]
+                Elist2[t] = Elist2[t+1]
+                Elist2[t+1] = E_temp
+
+        #Measure the magnitudes of the lattices, measure the overlap between the two...
         if z % step == 0:
             for t in range(temp_steps.size):
-                Mlist[temp_steps[t]][index] = latticeConfigurations[t].magnetization()
+                Mlist1[temp_steps[t]][index] = latticeConfigurations1[t].magnetization()
+                Mlist2[temp_steps[t]][index] = latticeConfigurations1[t].magnetization()
+                Qlist[temp_steps[t]][index] = calculate_overlap(latticeConfigurations1[t], latticeConfigurations2[t])
             index += 1
     
-    return Mlist 
+    return Mlist1, Mlist2, Qlist 
+
+def calculate_overlap(lattice1, lattice2):
+    """
+    This function calculates the overlap between two spin configurations.
+    The overlap is defined as the dot product of the spin vectors divided by the total number of spins.
+
+    Parameters:
+    lattice1 (Lattice): The first spin configuration.
+    lattice2 (Lattice): The second spin configuration.
+
+    Returns:
+    float: The overlap between the two spin configurations.
+    """
+    return np.sum(lattice1.config * lattice2.config) / lattice1.config.size
 
 
-########################################################################################################################
-# Purpose: The purpose of energy is to calculate the systems entire energy by summing up the lattice's spins together
-#
-# Params:
-# lattice; the configuration of the 2d lattice (nxn)
-########################################################################################################################   
+  
 def calculateTotalEnergy(lattice):
     """
     Purpose: The purpose of energy is to calculate the systems entire energy by summing up the lattice's spins together
@@ -139,7 +176,7 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
 
 
 
-maxTemp = 10
+maxTemp = 2
 MonteCarloSteps = 10**5
 measureEvery = 1000
 
