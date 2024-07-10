@@ -8,15 +8,16 @@ import multiprocessing as mp
 import spinConfigs # will be holding the lattice functions...
 
 
-def storeData(dictionary, filename):
-    # Convert the dictionary to a DataFrame
-    df = pd.DataFrame(list(dictionary.items()), columns=['Temperature', 'Magnetization'])
+def storeData(dictionaries, filenames):
+    for dictionary, filename in zip(dictionaries, filenames):
+        # Convert the dictionary to a DataFrame
+        df = pd.DataFrame(list(dictionary.items()), columns=['Temperature', 'Measurement'])
 
-    # Convert the lists in the 'Magnetization' column to string
-    df['Magnetization'] = df['Magnetization'].apply(lambda x: str(x))
+        # Convert the lists in the 'Measurement' column to string
+        df['Measurement'] = df['Measurement'].apply(lambda x: str(x))
 
-    # Save the DataFrame to a CSV file
-    df.to_csv(filename, index=False)
+        # Save the DataFrame to a CSV file
+        df.to_csv(filename, index=False)
 
 
 def montecarlo(MCS, maxTemp, step):
@@ -180,9 +181,10 @@ maxTemp = 2
 MonteCarloSteps = 10**5
 measureEvery = 1000
 
-tempMagPairs = montecarlo(MonteCarloSteps, maxTemp, measureEvery)
+dictionaries = montecarlo(MonteCarloSteps, maxTemp, measureEvery)
+filenames = ["Magnetization1_8x8.csv", "Magnetization2_8x8.csv", "Overlap_8x8.csv"]
 
-storeData(tempMagPairs, "Magnetization_8x8.csv")
+storeData(dictionaries, filenames)
 
 
 
