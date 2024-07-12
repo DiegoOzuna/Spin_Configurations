@@ -5,15 +5,14 @@ import numpy as np
 import copy
 
 class Lattice:
-    def __init__(self, n):      #This function will create our initial 3D lattice space.
+    def __init__(self, n, bonds=None):  #This function will create our initial 3D lattice space. # bonds is optional
         self.n = n
         self.config = self.fill_lattice()
-        self.bonds = self.fill_bonds()
+        if bonds is None:
+            self.bonds = self.fill_bonds()  # Generate bonds if not provided
+        else:
+            self.bonds = bonds  # Use provided bonds
 
-    def genReplica(self):         #This function will replicate our current lattice's bonds but with a different spin configuration
-        replica = copy.deepcopy(self)  # Create a deep copy of the current instance
-        replica.config = self.fill_lattice()  # Generate a new lattice configuration
-        return replica
 
     def fill_lattice(self):     #This function is meant to fill in our initial lattice space with "spins" (up/down)
         config = np.random.choice([1, -1], size=(self.n, self.n, self.n))
@@ -80,7 +79,7 @@ class Lattice:
 
 
 # print("TESTING FOR SAME BONDS BUT DIFFERENT SPINS!\n")
-# replica = lattice.genReplica()
+# replica = Lattice(8, lattice.bonds)
 # count = 0
 
 
