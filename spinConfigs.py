@@ -22,23 +22,27 @@ class Lattice:
         bonds = np.random.choice([1,-1], size=(self.n, self.n, self.n))
         return bonds
 
-
-    def neighboring_cost(self, i, j, z):       #This function is meant to calculate the local cost of S_ijz
+    def neighboring_cost(self, i, j, z):    #This function is meant to calculate the local cost of S_ijz
         currentNode = self.config[i][j][z]
         #The local cost is the summation of all the neighboring spins * their weight with respect to the current node
         #multiplied by the current node...
+        # Calculate indices for neighbors
 
         # This is within the same lattice space... (2d)
-        aboveNode = self.config[i][(j+1)%self.n][z] * self.bonds[i][(j+1)%self.n][z] #This is the bond between currentNode and aboveNode...
-        belowNode = self.config[i][(j-1)%self.n][z] * self.bonds[i][(j-1)%self.n][z] #This is the bond between currentNode and belowNode...
-        rightNode = self.config[(i+1)%self.n][j][z] *  self.bonds[(i+1)%self.n][j][z] #This is the bond between currentNode and rightNode...
-        leftNode = self.config[(i-1)%self.n][j][z] * self.bonds[(i-1)%self.n][j][z] #This is the bond between currentNode and leftNode...
+        above = (i, (j+1)%self.n, z)
+        below = (i, (j-1)%self.n, z)
+        right = ((i+1)%self.n, j, z)
+        left = ((i-1)%self.n, j, z)
 
         # This is entering the other lattice space... (3d)
-        forwardNode = self.config[i][j][(z+1)%self.n] * self.bonds[i][j][(z+1)%self.n] #This is the bond between currentNode and fowardNode...
-        backwardNode = self.config[i][j][(z-1)%self.n] * self.bonds[i][j][(z-1)%self.n] #This is the bond between currentNode and backwardNode
+        forward = (i, j, (z+1)%self.n)
+        backward = (i, j, (z-1)%self.n)
 
-        return currentNode * (aboveNode+belowNode+rightNode+leftNode+forwardNode+backwardNode)
+        # Calculate bond values for neighbors
+        neighbors = [above, below, right, left, forward, backward]
+        bond_values = [self.config[n]*self.bonds[n] for n in neighbors]
+
+        return currentNode * sum(bond_values)
 
     def spin_flip(self, i, j, z):          #This function is meant to just flip the spin of S_ijz passed...
         self.config[i][j][z] = self.config[i][j][z] * -1
@@ -49,7 +53,7 @@ class Lattice:
 
 
 ########################################################################################
-# below is testing out the reconfiguration (aka our 3d class lattice)
+#below is testing out the reconfiguration (aka our 3d class lattice)
 
 # lattice = Lattice(3)       #should make the space of the lattice, and fill it in with spins (+1 / -1)
 
