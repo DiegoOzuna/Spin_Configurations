@@ -20,27 +20,34 @@ def storeData(dictionaries, filenames):
         df.to_csv(filename, index=False)
 
 
-def montecarlo(MCS, maxTemp, step):
+
+def montecarlo(MCS, maxTemp, step, equilock):
     """
-    purpose: montecarlo will simply generate a list of magnetizations after applying a metropolis algorithm where we  
-             repeatedly update the configuration of an inital lattice with spin ups and downs (+1,-1). 
+    purpose: the purpose of this program is to apply single spin flips and parallel tempering to two lists of lattices 
+    using a given bond configuration shared between them. These lists are of the size of 0.5 to maxTemp in 0.5 increments long.
+    After the process of flipping is finished the magnetizations of both lists is measured respectively between the temperatures
+    and an overlap is calculated between the two lists at each index, representing the overlap of the two lattices at that temperature. 
     
     Params:
     
-    MCS; monte carlo steps that are set
+    MCS; monte carlo steps that are set for each "realization"
     
-    maxTemp; the max temperature of our system (will start from 1 and go to Temp in 0.5 increments)
+    maxTemp; the max temperature of our system (will start from 0.5 and go to maxTemp in 0.5 increments)
     
     step; the MCS step we want to consistently keep measurements on (ex: every 1000th step we measure our system)
+
+    equilock; the amount of MCS steps we ignore in measuring to ensure our system is equilibrated
     """
     temp_steps = np.arange(0.5,maxTemp,0.5)
     
-    # Generate one set of lattice configurations
-    latticeConfigurations = [spinConfigs.Lattice(8) for _ in range(temp_steps.size)]
+
+    #Define an initial bond configuration that will be used throughout the sim...
+    bonds = spinConfigs.Lattice(4).bonds #will make a random config but only store the bonds of this random config
+    
 
     # Generate replicas of the above configurations
-    latticeConfigurations1 = [config.genReplica() for config in latticeConfigurations]  # S1
-    latticeConfigurations2 = [config.genReplica() for config in latticeConfigurations]  # S2
+    latticeConfigurations1 = [spinConfigs.Lattice(4, bonds) for i in range(temp_steps.size)]  # S1
+    latticeConfigurations2 = [spinConfigs.Lattice(4, bonds) for i in range(temp_steps.size)]  # S2
     
     Elist1 = [0] * temp_steps.size # each index corresponds to a temperature (spin1 corresponds to temp 1)
     Elist2 = [0] * temp_steps.size
@@ -48,7 +55,7 @@ def montecarlo(MCS, maxTemp, step):
     Mlist1 = {t: [0] * (MCS//step) for t in temp_steps}  # we know at each MCS we save configurations at different temperatures (ie we know we need # of unique
     Mlist2 = {t: [0] * (MCS//step) for t in temp_steps}  # temp allocated lists of size MCS divided by the amount of steps before a measurement occurs)
     
-    Qlist = {t: [0] * (MCS//step) for t in temp_steps}  # Overlap measurements
+    Qlist = {t: [0] * (MCS//step) for t in temp_steps}  # Overlap measurements individually
     
 
     index = 0       #This index is used in order to store our data correctly within the Mlists every 1000 steps
@@ -99,28 +106,32 @@ def montecarlo(MCS, maxTemp, step):
                 Elist2[t+1] = E_temp
 
         #Measure the magnitudes of the lattices, measure the overlap between the two...
-        if z % step == 0:
+        if z % step == 0 and z > equilock:
             for t in range(temp_steps.size):
                 Mlist1[temp_steps[t]][index] = latticeConfigurations1[t].magnetization()
-                Mlist2[temp_steps[t]][index] = latticeConfigurations1[t].magnetization()
+                Mlist2[temp_steps[t]][index] = latticeConfigurations2[t].magnetization()
                 Qlist[temp_steps[t]][index] = calculate_overlap(latticeConfigurations1[t], latticeConfigurations2[t])
             index += 1
-    
-    return Mlist1, Mlist2, Qlist 
+    return Mlist1, Mlist2, Qlist
 
-def calculate_overlap(lattice1, lattice2):
+def calculate_overlap(s, s_prime):
     """
     This function calculates the overlap between two spin configurations.
     The overlap is defined as the dot product of the spin vectors divided by the total number of spins.
 
     Parameters:
-    lattice1 (Lattice): The first spin configuration.
-    lattice2 (Lattice): The second spin configuration.
+    s (aka lattice 1): The first spin configuration.
+    s_prime (aka lattice 2): The second spin configuration.
 
     Returns:
-    float: The overlap between the two spin configurations.
+    The overlap between the two spin configurations.
     """
-    return np.sum(lattice1.config * lattice2.config) / lattice1.config.size
+    N = s.n ** 3 #the dimension n^3 because three dimensional
+    q = np.sum(s.config * s_prime.config) / N
+    return q
+
+
+        
 
 
   
@@ -136,7 +147,7 @@ def calculateTotalEnergy(lattice):
     for x in range(L):
         for y in range(L):
             for z in range(L):
-                E = E - lattice.config[x][y][z] * (lattice.config[(x+1)%L][y][z] + lattice.config[x][(y+1)%L][z] + lattice.config[x][y][(z+1)%L])
+                E = E - lattice.config[x][y][z] * ( (lattice.config[(x+1)%L][y][z] * lattice.bonds[(x+1)%L][y][z]) + (lattice.config[x][(y+1)%L][z] * lattice.bonds[x][(y+1)%L][z]) + (lattice.config[x][y][(z+1)%L] * lattice.bonds[x][y][(z+1)%L]) )
     
     return E
 
@@ -170,19 +181,19 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
                     if random < np.exp(-energy_of_flip / temp):
                         lattice.spin_flip(i, j, z)
 
-    new_lattice = spinConfigs.Lattice(lattice.n)
+    new_lattice = spinConfigs.Lattice(lattice.n, lattice.bonds)
     new_lattice.config = np.copy(lattice.config)
     return new_lattice
 
 
 
 
-maxTemp = 2
-MonteCarloSteps = 10**5
+maxTemp = 5
+MonteCarloSteps = 2 * 10**5
 measureEvery = 1000
 
-dictionaries = montecarlo(MonteCarloSteps, maxTemp, measureEvery)
-filenames = ["Magnetization1_8x8.csv", "Magnetization2_8x8.csv", "Overlap_8x8.csv"]
+dictionaries = montecarlo(MonteCarloSteps, maxTemp, measureEvery, MonteCarloSteps/2)
+filenames = ["Magnetization1_8x8x8.csv", "Magnetization2_8x8x8.csv", "Normalized_Overlap_8x8x8.csv", "Overlap_8x8x8.csv"]
 
 storeData(dictionaries, filenames)
 
