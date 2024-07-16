@@ -21,7 +21,7 @@ def storeData(dictionaries, filenames):
 
 
 
-def montecarlo(MCS, maxTemp, step, equilock):
+def montecarlo(MCS, temp_steps, step, equilock):
     """
     purpose: the purpose of this program is to apply single spin flips and parallel tempering to two lists of lattices 
     using a given bond configuration shared between them. These lists are of the size of 0.5 to maxTemp in 0.5 increments long.
@@ -32,13 +32,12 @@ def montecarlo(MCS, maxTemp, step, equilock):
     
     MCS; monte carlo steps that are set for each "realization"
     
-    maxTemp; the max temperature of our system (will start from 0.5 and go to maxTemp in 0.5 increments)
+    temp_steps; the temperatures that our system undergoes (will start from 0.5 and go up in 0.5 increments)
     
     step; the MCS step we want to consistently keep measurements on (ex: every 1000th step we measure our system)
 
     equilock; the amount of MCS steps we ignore in measuring to ensure our system is equilibrated
     """
-    temp_steps = np.arange(0.5,maxTemp,0.5)
     
 
     #Define an initial bond configuration that will be used throughout the sim...
@@ -189,10 +188,11 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
 
 
 maxTemp = 5
+temp_steps = np.arange(0.5,maxTemp,0.5)
 MonteCarloSteps = 2 * 10**5
 measureEvery = 1000
 
-dictionaries = montecarlo(MonteCarloSteps, maxTemp, measureEvery, MonteCarloSteps/2)
+dictionaries = montecarlo(MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2)
 filenames = ["Magnetization1_8x8x8.csv", "Magnetization2_8x8x8.csv", "Normalized_Overlap_8x8x8.csv", "Overlap_8x8x8.csv"]
 
 storeData(dictionaries, filenames)
