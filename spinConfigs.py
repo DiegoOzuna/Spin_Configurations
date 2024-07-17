@@ -5,27 +5,19 @@ import numpy as np
 import copy
 
 class Lattice:
-    def __init__(self, n, bonds=None, config=None):  #This function will create our initial 3D lattice space. given bonds and lattice is optional
+    def __init__(self, n, config=None):  #This function will create our initial 3D lattice space. given bonds and lattice is optional
         self.n = n
         if config is None:
             self.config = self.fill_lattice()
         else:
               self.config = config #Use provided lattice configuration
-        if bonds is None:
-            self.bonds = self.fill_bonds()  # Generate bonds if not provided
-        else:
-            self.bonds = bonds  # Use provided bonds
 
 
     def fill_lattice(self):     #This function is meant to fill in our initial lattice space with "spins" (up/down)
         config = np.random.choice([1, -1], size=(self.n, self.n, self.n))
         return config
-    
-    def fill_bonds(self):       #This function is meant to fill in the values for the bonds between 
-        bonds = np.random.choice([1,-1], size=(self.n, self.n, self.n))
-        return bonds
 
-    def neighboring_cost(self, i, j, z):    #This function is meant to calculate the local cost of S_ijz
+    def neighboring_cost(self, bonds, i, j, z):    #This function is meant to calculate the local cost of S_ijz
         currentNode = self.config[i][j][z]
         #The local cost is the summation of all the neighboring spins * their weight with respect to the current node
         #multiplied by the current node...
@@ -43,7 +35,7 @@ class Lattice:
 
         # Calculate bond values for neighbors
         neighbors = [above, below, right, left, forward, backward]
-        bond_values = [self.config[n]*self.bonds[n] for n in neighbors]
+        bond_values = [self.config[n]* bonds.config[n] for n in neighbors]
 
         return currentNode * sum(bond_values)
 
@@ -51,8 +43,21 @@ class Lattice:
         self.config[i][j][z] = self.config[i][j][z] * -1
 
 
-    def magnetization(self):            #This function will grab the magnetization of the 3d lattice
-        return np.sum(np.multiply(self.config, self.bonds))/ (self.n ** 3)
+    def magnetization(self, bonds):            #This function will grab the magnetization of the 3d lattice
+        return np.sum(np.multiply(self.config, bonds.config))/ (self.n ** 3)
+    
+
+class Bonds:
+    def __init__(self, n, config=None):  #This function will create our initial bond.
+        self.n = n
+        if config is None:
+            self.config = self.fill_bonds()  # Generate bonds if not provided
+        else:
+            self.config = config             #if we determine configuration outside of bonds, set value.
+    
+    def fill_bonds(self):       #This function is meant to fill in the values for the bonds between 
+        bonds = np.random.choice([1,-1], size=(self.n, self.n, self.n))
+        return bonds
 
 
 ########################################################################################
