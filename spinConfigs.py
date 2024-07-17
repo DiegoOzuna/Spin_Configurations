@@ -5,9 +5,12 @@ import numpy as np
 import copy
 
 class Lattice:
-    def __init__(self, n, bonds=None):  #This function will create our initial 3D lattice space. # bonds is optional
+    def __init__(self, n, bonds=None, config=None):  #This function will create our initial 3D lattice space. given bonds and lattice is optional
         self.n = n
-        self.config = self.fill_lattice()
+        if config is None:
+            self.config = self.fill_lattice()
+        else:
+              self.config = config #Use provided lattice configuration
         if bonds is None:
             self.bonds = self.fill_bonds()  # Generate bonds if not provided
         else:
