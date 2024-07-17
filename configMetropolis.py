@@ -43,12 +43,12 @@ def montecarlo(L, MCS, temp_steps, step, equilock):
     
 
     #Define an initial bond configuration that will be used throughout the sim...
-    bonds = spinConfigs.Lattice(L).bonds #will make a random config but only store the bonds of this random config
+    bonds = spinConfigs.Bonds(L) #will make a random config but only store the bonds of this random config
     
 
     # Generate replicas of the above configurations
-    latticeConfigurations1 = np.array([spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)])  # S1
-    latticeConfigurations2 = np.array([spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)])  # S2
+    latticeConfigurations1 = np.array([spinConfigs.Lattice(L) for i in range(temp_steps.size)])  # S1
+    latticeConfigurations2 = np.array([spinConfigs.Lattice(L) for i in range(temp_steps.size)])  # S2
 
     Elist1 = np.zeros(temp_steps.size) # each index corresponds to a temperature (spin1 corresponds to temp 1)
     Elist2 = np.zeros(temp_steps.size)
@@ -67,13 +67,13 @@ def montecarlo(L, MCS, temp_steps, step, equilock):
     for z in tqdm(range(MCS)):
         # do singular spin flips first
         for t in range(temp_steps.size):
-            latticeConfigurations1[t] = single_spin_flips(latticeConfigurations1[t], temp_steps[t])      # store final lattice from single_spin_flip for specific temperature
-            latticeConfigurations2[t] = single_spin_flips(latticeConfigurations2[t], temp_steps[t])
+            single_spin_flips(latticeConfigurations1[t], bonds, temp_steps[t])      # store final lattice from single_spin_flip for specific temperature
+            single_spin_flips(latticeConfigurations2[t], bonds, temp_steps[t])
 
         # Calculate total energy of systems
         for t in range(temp_steps.size):
-            Elist1[t] = calculateTotalEnergy(latticeConfigurations1[t])
-            Elist2[t] = calculateTotalEnergy(latticeConfigurations2[t])
+            Elist1[t] = calculateTotalEnergy(latticeConfigurations1[t], bonds)
+            Elist2[t] = calculateTotalEnergy(latticeConfigurations2[t], bonds)
 
         #Now we swap spins (parallel tempering)
         for t in range((temp_steps.size - 1)): #-1 to avoid getting out of bounds...
@@ -85,33 +85,22 @@ def montecarlo(L, MCS, temp_steps, step, equilock):
             #For S1
             if (np.random.random() < temp1):
                 #Swap the spin configurations of this temperature with the next temperature
-                # note: this list will be used for our measurements
-                S_temp = latticeConfigurations1[t]
-                latticeConfigurations1[t] = latticeConfigurations1[t+1]
-                latticeConfigurations1[t+1] = S_temp
+                latticeConfigurations1[t], latticeConfigurations1[t+1] = latticeConfigurations1[t+1], latticeConfigurations1[t]
 
                 #Ensure that we swap the energy of that spin configuration to its corresponding spot
-                # note: this list will be used only for the scope of this for loop for calculations
-                E_temp = Elist1[t]
-                Elist1[t] = Elist1[t+1]
-                Elist1[t+1] = E_temp
-
-            
+                Elist1[t], Elist1[t+1] = Elist1[t+1], Elist1[t]
 
             #For S2
             if (np.random.random() < temp2):
-                S_temp = latticeConfigurations2[t]
-                latticeConfigurations2[t] = latticeConfigurations2[t+1]
-                latticeConfigurations2[t+1] = S_temp
-                E_temp = Elist2[t]
-                Elist2[t] = Elist2[t+1]
-                Elist2[t+1] = E_temp
+                latticeConfigurations2[t], latticeConfigurations2[t+1] = latticeConfigurations2[t+1], latticeConfigurations2[t]
+                Elist2[t], Elist2[t+1] = Elist2[t+1], Elist2[t]
+
 
         #Measure the magnitudes of the lattices, measure the overlap between the two...
         if z % step == 0 and z > equilock:
             for t in range(temp_steps.size):
-                Mlist1[temp_steps[t]][index] = latticeConfigurations1[t].magnetization()
-                Mlist2[temp_steps[t]][index] = latticeConfigurations2[t].magnetization()
+                Mlist1[temp_steps[t]][index] = latticeConfigurations1[t].magnetization(bonds)
+                Mlist2[temp_steps[t]][index] = latticeConfigurations2[t].magnetization(bonds)
                 Qlist[temp_steps[t]][index] = calculate_overlap(latticeConfigurations1[t], latticeConfigurations2[t])
             index += 1
     return Mlist1, Mlist2, Qlist
@@ -137,7 +126,7 @@ def calculate_overlap(s, s_prime):
 
 
   
-def calculateTotalEnergy(lattice):
+def calculateTotalEnergy(lattice, bonds):
     """
     Purpose: The purpose of energy is to calculate the systems entire energy by summing up the lattice's spins together
     
@@ -149,9 +138,9 @@ def calculateTotalEnergy(lattice):
     config_y = np.roll(lattice.config, shift=-1, axis=1)
     config_z = np.roll(lattice.config, shift=-1, axis=2)
 
-    bonds_x = np.roll(lattice.bonds, shift=-1, axis=0)
-    bonds_y = np.roll(lattice.bonds, shift=-1, axis=1)
-    bonds_z = np.roll(lattice.bonds, shift=-1, axis=2)
+    bonds_x = np.roll(bonds.config, shift=-1, axis=0)
+    bonds_y = np.roll(bonds.config, shift=-1, axis=1)
+    bonds_z = np.roll(bonds.config, shift=-1, axis=2)
 
     # Calculate the energy contribution from each spin and its neighbors
     E = -lattice.config * (config_x * bonds_x + config_y * bonds_y + config_z * bonds_z)
@@ -166,7 +155,7 @@ def calculateTotalEnergy(lattice):
 
 
 
-def single_spin_flips(lattice, temp):            #will apply single spin flips to the lattice using metropolis policy
+def single_spin_flips(lattice, bonds, temp):            #will apply single spin flips to the lattice using metropolis policy
     '''
     Purpose: The purpose of single_spin_flips is in the name. We compute a check of the current observed spin within the
     lattice using the metropolis function and update that spin position if accepted. This will mimick the property 
@@ -183,7 +172,7 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
     for i in range(lattice.n):
         for j in range(lattice.n):
             for z in range(lattice.n):
-                energy_of_flip = (2) * lattice.neighboring_cost(i,j,z)
+                energy_of_flip = (2) * lattice.neighboring_cost(bonds,i,j,z)
                     
                 if(energy_of_flip <= 0):
                     lattice.spin_flip(i,j,z)
@@ -197,8 +186,8 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
 
 
 
-maxTemp = 2
-temp_steps = np.arange(0.8,maxTemp,0.5)
+maxTemp = 1.5
+temp_steps = np.arange(0.8,maxTemp,0.1)
 MonteCarloSteps = 10**5
 measureEvery = 1000
 L = 4
