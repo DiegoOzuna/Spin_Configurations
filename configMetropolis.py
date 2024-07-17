@@ -21,18 +21,20 @@ def storeData(dictionaries, filenames):
 
 
 
-def montecarlo(MCS, temp_steps, step, equilock):
+def montecarlo(L, MCS, temp_steps, step, equilock):
     """
     purpose: the purpose of this program is to apply single spin flips and parallel tempering to two lists of lattices 
-    using a given bond configuration shared between them. These lists are of the size of 0.5 to maxTemp in 0.5 increments long.
+    using a given bond configuration shared between them. These lists are of the size of 0.5 to maxTemp increments long.
     After the process of flipping is finished the magnetizations of both lists is measured respectively between the temperatures
     and an overlap is calculated between the two lists at each index, representing the overlap of the two lattices at that temperature. 
     
     Params:
+
+    L; the lattice size
     
     MCS; monte carlo steps that are set for each "realization"
     
-    temp_steps; the temperatures that our system undergoes (will start from 0.5 and go up in 0.5 increments)
+    temp_steps; the temperatures that our system undergoes
     
     step; the MCS step we want to consistently keep measurements on (ex: every 1000th step we measure our system)
 
@@ -41,12 +43,12 @@ def montecarlo(MCS, temp_steps, step, equilock):
     
 
     #Define an initial bond configuration that will be used throughout the sim...
-    bonds = spinConfigs.Lattice(4).bonds #will make a random config but only store the bonds of this random config
+    bonds = spinConfigs.Lattice(L).bonds #will make a random config but only store the bonds of this random config
     
 
     # Generate replicas of the above configurations
-    latticeConfigurations1 = [spinConfigs.Lattice(4, bonds) for i in range(temp_steps.size)]  # S1
-    latticeConfigurations2 = [spinConfigs.Lattice(4, bonds) for i in range(temp_steps.size)]  # S2
+    latticeConfigurations1 = [spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)]  # S1
+    latticeConfigurations2 = [spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)]  # S2
     
     Elist1 = [0] * temp_steps.size # each index corresponds to a temperature (spin1 corresponds to temp 1)
     Elist2 = [0] * temp_steps.size
@@ -146,10 +148,9 @@ def calculateTotalEnergy(lattice):
     for x in range(L):
         for y in range(L):
             for z in range(L):
-                E = E - lattice.config[x][y][z] * ( (lattice.config[(x+1)%L][y][z] * lattice.bonds[(x+1)%L][y][z]) + (lattice.config[x][(y+1)%L][z] * lattice.bonds[x][(y+1)%L][z]) + (lattice.config[x][y][(z+1)%L] * lattice.bonds[x][y][(z+1)%L]) )
-    
+                E -= lattice.config[x, y, z] * (lattice.config[(x+1)%L, y, z] * lattice.bonds[(x+1)%L, y, z] + lattice.config[x, (y+1)%L, z] * lattice.bonds[x, (y+1)%L, z] + lattice.config[x, y, (z+1)%L] * lattice.bonds[x, y, (z+1)%L])
     return E
-
+    
     
 
 
@@ -180,23 +181,46 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
                     if random < np.exp(-energy_of_flip / temp):
                         lattice.spin_flip(i, j, z)
 
-    new_lattice = spinConfigs.Lattice(lattice.n, lattice.bonds)
-    new_lattice.config = np.copy(lattice.config)
-    return new_lattice
+    return spinConfigs.Lattice(lattice.n, lattice.bonds, lattice.config)
 
 
 
 
-maxTemp = 5
-temp_steps = np.arange(0.5,maxTemp,0.5)
-MonteCarloSteps = 2 * 10**5
+maxTemp = 2
+temp_steps = np.arange(0.8,maxTemp,0.1)
+MonteCarloSteps = 10**5
 measureEvery = 1000
+L = 9
 
-dictionaries = montecarlo(MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2)
-filenames = ["Magnetization1_8x8x8.csv", "Magnetization2_8x8x8.csv", "Normalized_Overlap_8x8x8.csv", "Overlap_8x8x8.csv"]
+num_disorder_configs = 100  # The amount of disorder (aka bonds configured between the lattices) we want...
+
+avg_Mlist1, avg_Mlist2, avg_normal_Qlist, avg_Qlist = {}, {}, {}, {} #defining new lists to hold data from montecarlo (will be used to average over disordered systems)
+
+for _ in range(num_disorder_configs):
+    Mlist1, Mlist2, Qlist = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2) #generate data from montecarlo
+    
+    # Add the measurements for this disorder configuration to the total
+    for t in temp_steps:
+        if _ == 0:  # initialize lists in the first iteration
+            avg_Mlist1[t] = Mlist1[t]
+            avg_Mlist2[t] = Mlist2[t]
+            avg_Qlist[t] = Qlist[t]
+        else:  # add to existing lists in subsequent iterations
+            avg_Mlist1[t] = [sum(x) for x in zip(avg_Mlist1[t], Mlist1[t])]
+            avg_Mlist2[t] = [sum(x) for x in zip(avg_Mlist2[t], Mlist2[t])]
+            avg_Qlist[t] = [sum(x) for x in zip(avg_Qlist[t], Qlist[t])]
+
+# Divide by the number of disorder configurations to get the average
+for t in temp_steps:
+    avg_Mlist1[t] = [x / num_disorder_configs for x in avg_Mlist1[t]]
+    avg_Mlist2[t] = [x / num_disorder_configs for x in avg_Mlist2[t]]
+    avg_Qlist[t] = [x / num_disorder_configs for x in avg_Qlist[t]]
+
+dictionaries = avg_Mlist1, avg_Mlist2, avg_Qlist
+L = str(L)
+filenames = ["Magnetization1_"+L+"x"+L+"x"+L+".csv", "Magnetization2_"+L+"x"+L+"x"+L+".csv", "Overlap_"+L+"x"+L+"x"+L+".csv"]
 
 storeData(dictionaries, filenames)
-
 
 
 
