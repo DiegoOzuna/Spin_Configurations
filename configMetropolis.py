@@ -99,9 +99,9 @@ def montecarlo(L, MCS, temp_steps, step, equilock):
         #Measure the magnitudes of the lattices, measure the overlap between the two...
         if z % step == 0 and z > equilock:
             for t in range(temp_steps.size):
-                Mlist1[temp_steps[t]][index] = latticeConfigurations1[t].magnetization(bonds)
-                Mlist2[temp_steps[t]][index] = latticeConfigurations2[t].magnetization(bonds)
-                Qlist[temp_steps[t]][index] = calculate_overlap(latticeConfigurations1[t], latticeConfigurations2[t])
+                Mlist1[t][index] = latticeConfigurations1[t].magnetization(bonds)
+                Mlist2[t][index] = latticeConfigurations2[t].magnetization(bonds)
+                Qlist[t][index] = calculate_overlap(latticeConfigurations1[t], latticeConfigurations2[t])
             index += 1
     return Mlist1, Mlist2, Qlist
 
