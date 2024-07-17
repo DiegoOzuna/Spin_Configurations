@@ -47,16 +47,17 @@ def montecarlo(L, MCS, temp_steps, step, equilock):
     
 
     # Generate replicas of the above configurations
-    latticeConfigurations1 = [spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)]  # S1
-    latticeConfigurations2 = [spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)]  # S2
-    
-    Elist1 = [0] * temp_steps.size # each index corresponds to a temperature (spin1 corresponds to temp 1)
-    Elist2 = [0] * temp_steps.size
-    
-    Mlist1 = {t: [0] * (MCS//step) for t in temp_steps}  # we know at each MCS we save configurations at different temperatures (ie we know we need # of unique
-    Mlist2 = {t: [0] * (MCS//step) for t in temp_steps}  # temp allocated lists of size MCS divided by the amount of steps before a measurement occurs)
-    
-    Qlist = {t: [0] * (MCS//step) for t in temp_steps}  # Overlap measurements individually
+    latticeConfigurations1 = np.array([spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)])  # S1
+    latticeConfigurations2 = np.array([spinConfigs.Lattice(L, bonds) for i in range(temp_steps.size)])  # S2
+
+    Elist1 = np.zeros(temp_steps.size) # each index corresponds to a temperature (spin1 corresponds to temp 1)
+    Elist2 = np.zeros(temp_steps.size)
+
+    Mlist1 = np.zeros((temp_steps.size, MCS//step))  # we know at each MCS we save configurations at different temperatures (ie we know we need # of unique
+    Mlist2 = np.zeros((temp_steps.size, MCS//step))  # temp allocated lists of size MCS divided by the amount of steps before a measurement occurs)
+
+    Qlist = np.zeros((temp_steps.size, MCS//step))  # Overlap measurements individually
+
     
 
     index = 0       #This index is used in order to store our data correctly within the Mlists every 1000 steps
@@ -143,13 +144,23 @@ def calculateTotalEnergy(lattice):
     Params:
     lattice; the configuration of the lattice (nxnxn)
     """
-    L = lattice.n     # L^3 = N ; therefore we only sum three sides
-    E = 0
-    for x in range(L):
-        for y in range(L):
-            for z in range(L):
-                E -= lattice.config[x, y, z] * (lattice.config[(x+1)%L, y, z] * lattice.bonds[(x+1)%L, y, z] + lattice.config[x, (y+1)%L, z] * lattice.bonds[x, (y+1)%L, z] + lattice.config[x, y, (z+1)%L] * lattice.bonds[x, y, (z+1)%L])
-    return E
+    # Shift the configuration and bonds arrays along each dimension
+    config_x = np.roll(lattice.config, shift=-1, axis=0)
+    config_y = np.roll(lattice.config, shift=-1, axis=1)
+    config_z = np.roll(lattice.config, shift=-1, axis=2)
+
+    bonds_x = np.roll(lattice.bonds, shift=-1, axis=0)
+    bonds_y = np.roll(lattice.bonds, shift=-1, axis=1)
+    bonds_z = np.roll(lattice.bonds, shift=-1, axis=2)
+
+    # Calculate the energy contribution from each spin and its neighbors
+    E = -lattice.config * (config_x * bonds_x + config_y * bonds_y + config_z * bonds_z)
+
+    # Sum up the energy contributions to get the total energy
+    total_energy = np.sum(E)
+
+    return total_energy
+
     
     
 
