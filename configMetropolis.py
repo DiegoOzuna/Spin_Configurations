@@ -192,16 +192,16 @@ def single_spin_flips(lattice, temp):            #will apply single spin flips t
                     if random < np.exp(-energy_of_flip / temp):
                         lattice.spin_flip(i, j, z)
 
-    return spinConfigs.Lattice(lattice.n, lattice.bonds, lattice.config)
+    return lattice
 
 
 
 
 maxTemp = 2
-temp_steps = np.arange(0.8,maxTemp,0.1)
+temp_steps = np.arange(0.8,maxTemp,0.5)
 MonteCarloSteps = 10**5
 measureEvery = 1000
-L = 9
+L = 4
 
 num_disorder_configs = 100  # The amount of disorder (aka bonds configured between the lattices) we want...
 
