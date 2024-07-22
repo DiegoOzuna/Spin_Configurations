@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import multiprocessing as mp
-import spinConfigs # will be holding the lattice functions...
+import pythonSingle.spinConfigs as spinConfigs # will be holding the lattice functions...
 
 
 def storeData(dictionaries, filenames):
