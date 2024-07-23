@@ -27,6 +27,7 @@ class Lattice {
         }
     };
 
+
 // Bond class that self initializes itself with 1 or -1
 class Bond {
     public:
@@ -107,86 +108,76 @@ double TotalEnergy(Lattice &lattice, Bond &bonds) {
 }
 
 
+std::pair<std::map<double, std::vector<Lattice> >, std::map<double, std::vector<Lattice> > > montecarlo(int L, int MCS, std::vector<double> temp_steps, int step, int equilock) {
+    std::map<double, std::vector<Lattice> > lattice1_dict;
+    std::map<double, std::vector<Lattice> > lattice2_dict;
+
+    Bond bonds(L);
+
+    std::vector<Lattice> latticeConfigurations1(temp_steps.size(), Lattice(L));
+    std::vector<Lattice> latticeConfigurations2(temp_steps.size(), Lattice(L));
+
+    std::vector<double> Elist1(temp_steps.size(), 0.0);
+    std::vector<double> Elist2(temp_steps.size(), 0.0);
+
+    for (int z = 0; z < MCS; ++z) {
+        for (size_t t = 0; t < temp_steps.size(); ++t) {
+            single_spin_flips(latticeConfigurations1[t], bonds, temp_steps[t]);
+            single_spin_flips(latticeConfigurations2[t], bonds, temp_steps[t]);
+        }
+
+        for (size_t t = 0; t < temp_steps.size(); ++t) {
+            Elist1[t] = TotalEnergy(latticeConfigurations1[t], bonds);
+            Elist2[t] = TotalEnergy(latticeConfigurations2[t], bonds);
+        }
+
+        for (size_t t = 0; t < temp_steps.size() - 1; ++t) {
+            double temp1 = std::exp((Elist1[t] - Elist1[t+1]) * (1/temp_steps[t] - 1/temp_steps[t+1]));
+            double temp2 = std::exp((Elist2[t] - Elist2[t+1]) * (1/temp_steps[t] - 1/temp_steps[t+1]));
+
+            std::default_random_engine generator;
+            std::uniform_real_distribution<double> distribution(0.0,1.0);
+
+            if (distribution(generator) < temp1) {
+                std::swap(latticeConfigurations1[t], latticeConfigurations1[t+1]);
+                std::swap(Elist1[t], Elist1[t+1]);
+            }
+
+            if (distribution(generator) < temp2) {
+                std::swap(latticeConfigurations2[t], latticeConfigurations2[t+1]);
+                std::swap(Elist2[t], Elist2[t+1]);
+            }
+        }
+
+        if (z % step == 0 && z > equilock) {
+            for (size_t t = 0; t < temp_steps.size(); ++t) {
+                lattice1_dict[temp_steps[t]].push_back(latticeConfigurations1[t]);
+                lattice2_dict[temp_steps[t]].push_back(latticeConfigurations2[t]);
+            }
+        }
+    }
+
+    return std::make_pair(lattice1_dict, lattice2_dict);
+}
 
 int main(int argc, char* argv[]) {
-    if(argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <lattice size>\n";
+    if(argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " <lattice size> <maxTemp> <MonteCarloSteps> <measureEvery> <num_disorder_configs> \n";
         return 1;
     }
+
     int L = std::atoi(argv[1]);
-    Lattice lattice1(L);
-    Lattice lattice2(L);
-    Bond bond(L);
+    double maxTemp = std::atof(argv[2]);
+    int MonteCarloSteps = std::atoi(argv[3]);
+    int measureEvery = std::atoi(argv[4]);
+    int num_disorder_configs = std::atoi(argv[5]);
 
-    std::cout << "lattice 1\n";
-    // Print the lattice
-    for(int i = 0; i < L; i++) {
-        for(int j = 0; j < L; j++) {
-            for(int k = 0; k < L; k++) {
-                std::cout << lattice1.spins[i][j][k] << ' ';
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
+    std::vector<double> temp_steps;
+    for (double temp = 0.8; temp < maxTemp; temp += 0.1) {
+        temp_steps.push_back(temp);
     }
 
-    std::cout << '\n';
-
-    std::cout << "lattice 2\n";
-    // Print the lattice
-    for(int i = 0; i < L; i++) {
-        for(int j = 0; j < L; j++) {
-            for(int k = 0; k < L; k++) {
-                std::cout << lattice2.spins[i][j][k] << ' ';
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
-    }
-
-    std::cout << '\n';
-
-    // Print the bonds
-    std::cout << "bond \n";
-    for(int i = 0; i < L; i++) {
-        for(int j = 0; j < L; j++) {
-            for(int k = 0; k < L; k++) {
-                std::cout << bond.config[i][j][k] << ' ';
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
-    }
-
-    std::cout << '\n';
-
-    std::cout << "Energy at (1,1,1) for lattice 1: " << energy(lattice1, bond, 1,1,1);
-    std::cout << '\n';
-    std::cout << "Energy at (1,1,1) for lattice 2: " << energy(lattice2, bond, 1,1,1);
-    std::cout << '\n';
-
-
-    std::cout << "Testing single spin flips on lattice 1... \n";
-    single_spin_flips(lattice1, bond, 1.0);
-
-    std::cout << "lattice 1 after spin flips over every site....\n";
-    // Print the lattice
-    for(int i = 0; i < L; i++) {
-        for(int j = 0; j < L; j++) {
-            for(int k = 0; k < L; k++) {
-                std::cout << lattice1.spins[i][j][k] << ' ';
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
-    }
-
-    std::cout << '\n';
-
-    std::cout << "Total Energy for lattice 1: " << TotalEnergy(lattice1, bond);
-    std::cout << '\n';
-    std::cout << "Total Energy for lattice 2: " << TotalEnergy(lattice2, bond);
-    std::cout << '\n';
+    auto [lattice1_dict, lattice2_dict] = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2);
 
 
     return 0;
