@@ -188,7 +188,7 @@ int main(int argc, char* argv[]) {
     int num_disorder_configs = std::atoi(argv[5]);
 
     std::vector<double> temp_steps;
-    for (double temp = 0.8; temp < maxTemp; temp += 0.1) {
+    for (double temp = 0.8; temp <= maxTemp; temp += 0.1) {
         temp_steps.push_back(temp);
     }
 
