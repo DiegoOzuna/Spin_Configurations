@@ -5,6 +5,9 @@
 #include <cmath>
 #include <cstdlib> // for atoi
 
+//for data saving...
+#include <json.hpp> //This header file will need to be installed from here.... <https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp>
+#include <fstream>
 
 // Initialize the random number generator
 std::default_random_engine generator;
@@ -164,7 +167,7 @@ std::pair<std::map<double, std::vector<Lattice> >, std::map<double, std::vector<
             }
         }
 
-        if (z % step == 0 && z > equilock) {
+        if (z % step == 0 && z >= equilock) {
             for (size_t t = 0; t < temp_steps.size(); ++t) {
                 lattice1_dict[temp_steps[t]].push_back(latticeConfigurations1[t]);
                 lattice2_dict[temp_steps[t]].push_back(latticeConfigurations2[t]);
@@ -192,28 +195,38 @@ int main(int argc, char* argv[]) {
         temp_steps.push_back(temp);
     }
 
-    auto [lattice1_dict, lattice2_dict] = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2);
+    // Create a JSON object
+    nlohmann::json j;
 
-    // Print the contents of lattice1_dict and lattice2_dict
-    for (const auto& pair : lattice1_dict) {
-        double temp = pair.first;
-        const std::vector<Lattice>& lattices = pair.second;
+    for (int config = 0; config < num_disorder_configs; ++config) {
+        auto [lattice1_dict, lattice2_dict] = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2);
 
-        std::cout << "Temp: " << temp << "\n";
-        for (const Lattice& lattice : lattices) {
-            std::cout << lattice << "\n";
+        // Add data of S1 to the JSON object...
+        for (const auto& pair : lattice1_dict) {
+            double temp = pair.first;
+            const std::vector<Lattice>& lattices = pair.second;
+
+            for (const Lattice& lattice : lattices) {
+                j["Configuration"][std::to_string(config)]["S1"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
+            }
+        }
+        // Add data of S2 to the JSON object...
+        for (const auto& pair : lattice2_dict) {
+            double temp = pair.first;
+            const std::vector<Lattice>& lattices = pair.second;
+
+            for (const Lattice& lattice : lattices) {
+                j["Configuration"][std::to_string(config)]["S2"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
+
+        }
+
+        
         }
     }
 
-    for (const auto& pair : lattice2_dict) {
-        double temp = pair.first;
-        const std::vector<Lattice>& lattices = pair.second;
-
-        std::cout << "Temp: " << temp << "\n";
-        for (const Lattice& lattice : lattices) {
-            std::cout << lattice << "\n";
-        }
-    }
+    // Write JSON to file
+    std::ofstream file("data.json");
+    file << j.dump(4);
 
     return 0;
 }
