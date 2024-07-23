@@ -1,6 +1,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <map>
 #include <cmath>
 #include <cstdlib> // for atoi
 
@@ -56,6 +57,55 @@ int energy(Lattice &lattice, Bond &bond, int i, int j, int k) {
     
     return -lattice.spins[i][j][k] * (up + down + left + right + front + back);
 }
+
+void single_spin_flips(Lattice &lattice, Bond &bond, double temp) {
+    std::default_random_engine generator;
+    std::uniform_real_distribution<double> distribution(0.0,1.0);
+    int n = lattice.L;
+    double oneDimSize = pow(n, 3);
+    // Generate a list of random numbers of size n*n*n
+    std::vector<double> random_numbers(oneDimSize);
+    for (int i = 0; i < oneDimSize; ++i) {
+        random_numbers[i] = distribution(generator);
+    }
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            for (int z = 0; z < n; ++z) {
+                int idx = i * n * n + j * n + z;
+                double energy_of_flip = 2 * energy(lattice, bond, i, j, z);
+                if (random_numbers[idx] < std::exp(-energy_of_flip / temp)) {
+                    lattice.spins[i][j][z] *= -1;
+                }
+            }
+        }
+    }
+}
+
+double TotalEnergy(Lattice &lattice, Bond &bonds) {
+    double total_energy = 0.0;
+    int nx = lattice.L;
+    int ny = lattice.L;
+    int nz = lattice.L;
+
+    for (int i = 0; i < nx; ++i) {
+        for (int j = 0; j < ny; ++j) {
+            for (int k = 0; k < nz; ++k) {
+                // Calculate the energy contribution from each spin and its neighbors
+                double E = -lattice.spins[i][j][k] * (
+                    lattice.spins[(i+1)%nx][j][k] * bonds.config[(i+1)%nx][j][k] +
+                    lattice.spins[i][(j+1)%ny][k] * bonds.config[i][(j+1)%ny][k] +
+                    lattice.spins[i][j][(k+1)%nz] * bonds.config[i][j][(k+1)%nz]
+                );
+                // Add the energy contribution to the total energy
+                total_energy += E;
+            }
+        }
+    }
+
+    return total_energy;
+}
+
 
 
 int main(int argc, char* argv[]) {
@@ -116,10 +166,28 @@ int main(int argc, char* argv[]) {
     std::cout << '\n';
 
 
-    // Commented out for now
-    // for(int i = 0; i < 10000; i++) {
-    //     metropolis(lattice);
-    // }
+    std::cout << "Testing single spin flips on lattice 1... \n";
+    single_spin_flips(lattice1, bond, 1.0);
+
+    std::cout << "lattice 1 after spin flips over every site....\n";
+    // Print the lattice
+    for(int i = 0; i < L; i++) {
+        for(int j = 0; j < L; j++) {
+            for(int k = 0; k < L; k++) {
+                std::cout << lattice1.spins[i][j][k] << ' ';
+            }
+            std::cout << '\n';
+        }
+        std::cout << '\n';
+    }
+
+    std::cout << '\n';
+
+    std::cout << "Total Energy for lattice 1: " << TotalEnergy(lattice1, bond);
+    std::cout << '\n';
+    std::cout << "Total Energy for lattice 2: " << TotalEnergy(lattice2, bond);
+    std::cout << '\n';
+
 
     return 0;
 }
