@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdlib> // for atoi
 
+
 // Initialize the random number generator
 std::default_random_engine generator;
 std::uniform_real_distribution<double> distribution(0.0,1.0);
@@ -24,6 +25,20 @@ class Lattice {
                     }
                 }
             }
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const Lattice& lattice) {
+            os << "Lattice size: " << lattice.L << "\n";
+            for (int i = 0; i < lattice.L; ++i) {
+                for (int j = 0; j < lattice.L; ++j) {
+                    for (int k = 0; k < lattice.L; ++k) {
+                        os << lattice.spins[i][j][k] << " ";
+                    }
+                    os << "\n";
+                }
+                os << "\n";
+            }
+            return os;
         }
     };
 
@@ -179,6 +194,26 @@ int main(int argc, char* argv[]) {
 
     auto [lattice1_dict, lattice2_dict] = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2);
 
+    // Print the contents of lattice1_dict and lattice2_dict
+    for (const auto& pair : lattice1_dict) {
+        double temp = pair.first;
+        const std::vector<Lattice>& lattices = pair.second;
+
+        std::cout << "Temp: " << temp << "\n";
+        for (const Lattice& lattice : lattices) {
+            std::cout << lattice << "\n";
+        }
+    }
+
+    for (const auto& pair : lattice2_dict) {
+        double temp = pair.first;
+        const std::vector<Lattice>& lattices = pair.second;
+
+        std::cout << "Temp: " << temp << "\n";
+        for (const Lattice& lattice : lattices) {
+            std::cout << lattice << "\n";
+        }
+    }
 
     return 0;
 }
