@@ -13,86 +13,60 @@
 std::default_random_engine generator;
 std::uniform_real_distribution<double> distribution(0.0,1.0);
 
-// Lattice class that self initializes itself with 1 or -1
+constexpr int L = 3; // The size of the lattice/bonds
+
 class Lattice {
-    public:
-        int L;
-        std::vector<std::vector<std::vector<int> > > spins;
+public:
+    int spins[L][L][L];
 
-        Lattice(int size) : L(size) {
-            spins.resize(L, std::vector<std::vector<int> >(L, std::vector<int>(L)));
-            for(int i = 0; i < L; i++) {
-                for(int j = 0; j < L; j++) {
-                    for(int k = 0; k < L; k++) {
-                        spins[i][j][k] = (distribution(generator) < 0.5) ? 1 : -1;
-                    }
+    Lattice() {
+        for(int i = 0; i < L; i++) {
+            for(int j = 0; j < L; j++) {
+                for(int k = 0; k < L; k++) {
+                    spins[i][j][k] = (distribution(generator) < 0.5) ? 1 : -1;
                 }
             }
         }
+    }
+};
 
-        friend std::ostream& operator<<(std::ostream& os, const Lattice& lattice) {
-            os << "Lattice size: " << lattice.L << "\n";
-            for (int i = 0; i < lattice.L; ++i) {
-                for (int j = 0; j < lattice.L; ++j) {
-                    for (int k = 0; k < lattice.L; ++k) {
-                        os << lattice.spins[i][j][k] << " ";
-                    }
-                    os << "\n";
-                }
-                os << "\n";
-            }
-            return os;
-        }
-    };
-
-
-// Bond class that self initializes itself with 1 or -1
 class Bond {
-    public:
-        int L;
-        std::vector<std::vector<std::vector<int> > > config;
+public:
+    int config[L][L][L];
 
-        Bond(int size) : L(size) {
-            config.resize(L, std::vector<std::vector<int> >(L, std::vector<int>(L)));
-            for(int i = 0; i < L; i++) {
-                for(int j = 0; j < L; j++) {
-                    for(int k = 0; k < L; k++) {
-                        config[i][j][k] = (distribution(generator) < 0.5) ? 1 : -1;
-                    }
+    Bond() {
+        for(int i = 0; i < L; i++) {
+            for(int j = 0; j < L; j++) {
+                for(int k = 0; k < L; k++) {
+                    config[i][j][k] = (distribution(generator) < 0.5) ? 1 : -1;
                 }
             }
         }
-    };
+    }
+};
 
-// Function to calculate the energy of a spin
-int energy(Lattice &lattice, Bond &bond, int i, int j, int k) {
-    int L = lattice.L;
-    int up = lattice.spins[(i-1+L)%L][j][k] * bond.config[(i-1+L)%L][j][k];
-    int down = lattice.spins[(i+1)%L][j][k] * bond.config[(i+1)%L][j][k];
-    int left = lattice.spins[i][(j-1+L)%L][k] * bond.config[i][(j-1+L)%L][k];
-    int right = lattice.spins[i][(j+1)%L][k] * bond.config[i][(j+1)%L][k];
-    int front = lattice.spins[i][j][(k-1+L)%L] * bond.config[i][j][(k-1+L)%L];
-    int back = lattice.spins[i][j][(k+1)%L] * bond.config[i][j][(k+1)%L];
-    
-    return -lattice.spins[i][j][k] * (up + down + left + right + front + back);
-}
 
 void single_spin_flips(Lattice &lattice, Bond &bond, double temp) {
     std::default_random_engine generator;
     std::uniform_real_distribution<double> distribution(0.0,1.0);
-    int n = lattice.L;
-    double oneDimSize = pow(n, 3);
     // Generate a list of random numbers of size n*n*n
-    std::vector<double> random_numbers(oneDimSize);
-    for (int i = 0; i < oneDimSize; ++i) {
+    double random_numbers[L*L*L];
+    for (int i = 0; i < L*L*L; ++i) {
         random_numbers[i] = distribution(generator);
     }
 
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            for (int z = 0; z < n; ++z) {
-                int idx = i * n * n + j * n + z;
-                double energy_of_flip = 2 * energy(lattice, bond, i, j, z);
+    for (int i = 0; i < L; ++i) {
+        for (int j = 0; j < L; ++j) {
+            for (int z = 0; z < L; ++z) {
+                int idx = i * L * L + j * L + z;
+                int up = lattice.spins[(i-1+L)%L][j][z] * bond.config[(i-1+L)%L][j][z];
+                int down = lattice.spins[(i+1)%L][j][z] * bond.config[(i+1)%L][j][z];
+                int left = lattice.spins[i][(j-1+L)%L][z] * bond.config[i][(j-1+L)%L][z];
+                int right = lattice.spins[i][(j+1)%L][z] * bond.config[i][(j+1)%L][z];
+                int front = lattice.spins[i][j][(z-1+L)%L] * bond.config[i][j][(z-1+L)%L];
+                int back = lattice.spins[i][j][(z+1)%L] * bond.config[i][j][(z+1)%L];
+                double energy_of_flip = -2 * lattice.spins[i][j][z] * (up + down + left + right + front + back);
+
                 if (random_numbers[idx] < std::exp(-energy_of_flip / temp)) {
                     lattice.spins[i][j][z] *= -1;
                 }
@@ -101,20 +75,18 @@ void single_spin_flips(Lattice &lattice, Bond &bond, double temp) {
     }
 }
 
+
 double TotalEnergy(Lattice &lattice, Bond &bonds) {
     double total_energy = 0.0;
-    int nx = lattice.L;
-    int ny = lattice.L;
-    int nz = lattice.L;
 
-    for (int i = 0; i < nx; ++i) {
-        for (int j = 0; j < ny; ++j) {
-            for (int k = 0; k < nz; ++k) {
+    for (int i = 0; i < L; ++i) {
+        for (int j = 0; j < L; ++j) {
+            for (int k = 0; k < L; ++k) {
                 // Calculate the energy contribution from each spin and its neighbors
                 double E = -lattice.spins[i][j][k] * (
-                    lattice.spins[(i+1)%nx][j][k] * bonds.config[(i+1)%nx][j][k] +
-                    lattice.spins[i][(j+1)%ny][k] * bonds.config[i][(j+1)%ny][k] +
-                    lattice.spins[i][j][(k+1)%nz] * bonds.config[i][j][(k+1)%nz]
+                    lattice.spins[(i+1)%L][j][k] * bonds.config[(i+1)%L][j][k] +
+                    lattice.spins[i][(j+1)%L][k] * bonds.config[i][(j+1)%L][k] +
+                    lattice.spins[i][j][(k+1)%L] * bonds.config[i][j][(k+1)%L]
                 );
                 // Add the energy contribution to the total energy
                 total_energy += E;
@@ -126,14 +98,16 @@ double TotalEnergy(Lattice &lattice, Bond &bonds) {
 }
 
 
+
 std::pair<std::map<double, std::vector<Lattice> >, std::map<double, std::vector<Lattice> > > montecarlo(int L, int MCS, std::vector<double> temp_steps, int step, int equilock) {
+    
     std::map<double, std::vector<Lattice> > lattice1_dict;
     std::map<double, std::vector<Lattice> > lattice2_dict;
 
-    Bond bonds(L);
+    Bond bonds;
 
-    std::vector<Lattice> latticeConfigurations1(temp_steps.size(), Lattice(L));
-    std::vector<Lattice> latticeConfigurations2(temp_steps.size(), Lattice(L));
+    std::vector<Lattice> latticeConfigurations1(temp_steps.size(), Lattice());
+    std::vector<Lattice> latticeConfigurations2(temp_steps.size(), Lattice());
 
     std::vector<double> Elist1(temp_steps.size(), 0.0);
     std::vector<double> Elist2(temp_steps.size(), 0.0);
@@ -178,17 +152,40 @@ std::pair<std::map<double, std::vector<Lattice> >, std::map<double, std::vector<
     return std::make_pair(lattice1_dict, lattice2_dict);
 }
 
+
+void perform_operations(int config, int L, int MonteCarloSteps, std::vector<double>& temp_steps, int measureEvery, nlohmann::json& j) {
+    auto [lattice1_dict, lattice2_dict] = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, 10000);
+
+    // Add data of S1 to the JSON object...
+    for (const auto& pair : lattice1_dict) {
+        double temp = pair.first;
+        const std::vector<Lattice>& lattices = pair.second;
+
+        for (const Lattice& lattice : lattices) {
+            j["Configuration"][std::to_string(config)]["S1"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
+        }
+    }
+    // Add data of S2 to the JSON object...
+    for (const auto& pair : lattice2_dict) {
+        double temp = pair.first;
+        const std::vector<Lattice>& lattices = pair.second;
+
+        for (const Lattice& lattice : lattices) {
+            j["Configuration"][std::to_string(config)]["S2"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
-    if(argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " <lattice size> <maxTemp> <MonteCarloSteps> <measureEvery> <num_disorder_configs> \n";
+    if(argc != 5) {
+        std::cerr << "Usage: " << argv[0] << " <maxTemp> <MonteCarloSteps> <measureEvery> <num_disorder_configs> \n";
         return 1;
     }
 
-    int L = std::atoi(argv[1]);
-    double maxTemp = std::atof(argv[2]);
-    int MonteCarloSteps = std::atoi(argv[3]);
-    int measureEvery = std::atoi(argv[4]);
-    int num_disorder_configs = std::atoi(argv[5]);
+    double maxTemp = std::atoi(argv[1]);
+    int MonteCarloSteps = std::atoi(argv[2]);
+    int measureEvery = std::atoi(argv[3]);
+    int num_disorder_configs = std::atoi(argv[4]);
 
     std::vector<double> temp_steps;
     for (double temp = 0.8; temp <= maxTemp; temp += 0.1) {
@@ -199,29 +196,7 @@ int main(int argc, char* argv[]) {
     nlohmann::json j;
 
     for (int config = 0; config < num_disorder_configs; ++config) {
-        auto [lattice1_dict, lattice2_dict] = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, MonteCarloSteps/2);
-
-        // Add data of S1 to the JSON object...
-        for (const auto& pair : lattice1_dict) {
-            double temp = pair.first;
-            const std::vector<Lattice>& lattices = pair.second;
-
-            for (const Lattice& lattice : lattices) {
-                j["Configuration"][std::to_string(config)]["S1"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
-            }
-        }
-        // Add data of S2 to the JSON object...
-        for (const auto& pair : lattice2_dict) {
-            double temp = pair.first;
-            const std::vector<Lattice>& lattices = pair.second;
-
-            for (const Lattice& lattice : lattices) {
-                j["Configuration"][std::to_string(config)]["S2"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
-
-        }
-
-        
-        }
+        perform_operations(config, L, MonteCarloSteps, temp_steps, measureEvery, j);
     }
 
     // Write JSON to file
@@ -230,3 +205,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
