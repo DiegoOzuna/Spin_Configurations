@@ -9,11 +9,18 @@
 #include <json.hpp> //This header file will need to be installed from here.... <https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp>
 #include <fstream>
 
+//for parallel code...
+#include <thread>
+#include <mutex>
+#include <memory> //for std::shared_ptr
+
+std::mutex mtx;
+
 // Initialize the random number generator
 std::default_random_engine generator;
 std::uniform_real_distribution<double> distribution(0.0,1.0);
 
-constexpr int L = 3; // The size of the lattice/bonds
+constexpr int L = 9; // The size of the lattice/bonds
 
 class Lattice {
 public:
@@ -153,8 +160,11 @@ std::pair<std::map<double, std::vector<Lattice> >, std::map<double, std::vector<
 }
 
 
-void perform_operations(int config, int L, int MonteCarloSteps, std::vector<double>& temp_steps, int measureEvery, nlohmann::json& j) {
+void perform_operations(int config, int L, int MonteCarloSteps, std::vector<double>& temp_steps, int measureEvery, std::shared_ptr<nlohmann::json> j) {
     auto [lattice1_dict, lattice2_dict] = montecarlo(L, MonteCarloSteps, temp_steps, measureEvery, 10000);
+
+    //LOCK the mutex before update of json...
+    std::lock_guard<std::mutex> lock(mtx);
 
     // Add data of S1 to the JSON object...
     for (const auto& pair : lattice1_dict) {
@@ -162,7 +172,7 @@ void perform_operations(int config, int L, int MonteCarloSteps, std::vector<doub
         const std::vector<Lattice>& lattices = pair.second;
 
         for (const Lattice& lattice : lattices) {
-            j["Configuration"][std::to_string(config)]["S1"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
+            (*j)["Configuration"][std::to_string(config)]["S1"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
         }
     }
     // Add data of S2 to the JSON object...
@@ -171,9 +181,10 @@ void perform_operations(int config, int L, int MonteCarloSteps, std::vector<doub
         const std::vector<Lattice>& lattices = pair.second;
 
         for (const Lattice& lattice : lattices) {
-            j["Configuration"][std::to_string(config)]["S2"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
+            (*j)["Configuration"][std::to_string(config)]["S2"]["Temp"][std::to_string(temp)].push_back(lattice.spins);
         }
     }
+    // mtx.unlock();
 }
 
 int main(int argc, char* argv[]) {
@@ -192,16 +203,26 @@ int main(int argc, char* argv[]) {
         temp_steps.push_back(temp);
     }
 
-    // Create a JSON object
-    nlohmann::json j;
+    // Change the type of 'j' to std::shared_ptr<nlohmann::json>
+    std::shared_ptr<nlohmann::json> j = std::make_shared<nlohmann::json>();
+
+    // Create a vector to hold the threads
+    std::vector<std::thread> threads;
 
     for (int config = 0; config < num_disorder_configs; ++config) {
-        perform_operations(config, L, MonteCarloSteps, temp_steps, measureEvery, j);
+        // Start a new thread for each operation
+        threads.push_back(std::thread(perform_operations, std::ref(config), std::ref(L), std::ref(MonteCarloSteps), std::ref(temp_steps), std::ref(measureEvery), std::ref(j)));
+
+    }
+
+    // Wait for all threads to finish
+    for (auto& th : threads) {
+        th.join();
     }
 
     // Write JSON to file
     std::ofstream file("data.json");
-    file << j.dump(4);
+    file << (*j).dump(4);
 
     return 0;
 }
